@@ -12,15 +12,15 @@ from telegram.ext import (
 from PIL import Image
 from keep_alive import keep_alive
 
-# Logging
+# Configure logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # Your bot token from BotFather
-BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"  # 🔁 Replace this!
+BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"  # Replace with your token
 
 # Function to convert TIFF to PDF
 def convert_tiff_to_pdf(tiff_path, pdf_path):
-    Image.MAX_IMAGE_PIXELS = None  # Prevents DecompressionBombError
+    Image.MAX_IMAGE_PIXELS = None
     images = []
     try:
         with Image.open(tiff_path) as img:
@@ -33,7 +33,7 @@ def convert_tiff_to_pdf(tiff_path, pdf_path):
     if images:
         images[0].save(pdf_path, save_all=True, append_images=images[1:])
 
-# Run conversion and send result in background
+# Handle file conversion in background
 def handle_conversion(tiff_path, pdf_path, chat_id, context: ContextTypes.DEFAULT_TYPE):
     try:
         convert_tiff_to_pdf(tiff_path, pdf_path)
@@ -41,40 +41,32 @@ def handle_conversion(tiff_path, pdf_path, chat_id, context: ContextTypes.DEFAUL
         logging.info("✅ PDF sent.")
     except Exception as e:
         logging.error(f"❌ Conversion error: {e}")
-        context.bot.send_message(chat_id=chat_id, text="⚠️ Something went wrong during conversion.")
+        context.bot.send_message(chat_id=chat_id, text="⚠️ Something went wrong.")
     finally:
-        if os.path.exists(tiff_path):
-            os.remove(tiff_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-        logging.info("🧹 Cleaned up temporary files.")
+        for path in [tiff_path, pdf_path]:
+            if os.path.exists(path):
+                os.remove(path)
+        logging.info("🧹 Cleaned up files.")
 
 # Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("👋 Send me a TIFF file and I’ll convert it to PDF!")
+    await update.message.reply_text("👋 Send me a TIFF file, and I’ll send you the PDF!")
 
-# Handle TIFF file upload
+# Handle document upload
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.document or not update.message.document.file_name.lower().endswith(".tiff"):
-        await update.message.reply_text("⚠️ Please send a `.tiff` file.")
-        return
+        return  # Ignore non-TIFF files
 
-    await update.message.reply_text("📥 Downloading your TIFF file...")
     file = await context.bot.get_file(update.message.document.file_id)
-
     tiff_path = f"{update.message.document.file_unique_id}.tiff"
     pdf_path = f"{update.message.document.file_unique_id}.pdf"
     await file.download_to_drive(tiff_path)
-    logging.info(f"✅ Downloaded TIFF: {tiff_path}")
 
-    await update.message.reply_text("⏳ Converting TIFF to PDF. Please wait...")
-
-    # Run conversion in background
     threading.Thread(target=handle_conversion, args=(tiff_path, pdf_path, update.effective_chat.id, context)).start()
 
-# Main function
+# Main bot runner
 def main():
-    keep_alive()  # Keeps the bot alive on Railway
+    keep_alive()
 
     import nest_asyncio
     import asyncio
