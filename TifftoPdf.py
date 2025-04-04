@@ -61,14 +61,33 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, flag_path):
     try:
         image = Image.open(tiff_path)
-        image.save(pdf_path, "PDF", resolution=100.0)
-        logging.info(f"📄 PDF created: {pdf_path}")
 
-        # Send PDF in async context
-        asyncio.run_coroutine_threadsafe(
-            bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf"),
-            loop
-        ).result()
+        # Load all frames
+        frames = []
+        try:
+            while True:
+                frames.append(image.copy())
+                image.seek(len(frames))
+        except EOFError:
+            pass
+
+        # Save as multi-page PDF
+        if frames:
+            frames[0].save(
+                pdf_path,
+                save_all=True,
+                append_images=frames[1:],
+                resolution=100.0
+            )
+            logging.info(f"📄 PDF created: {pdf_path}")
+
+            # Send PDF to user
+            asyncio.run_coroutine_threadsafe(
+                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf"),
+                loop
+            ).result()
+        else:
+            raise Exception("TIFF file has no readable frames.")
 
     except Exception as e:
         logging.error(f"❌ Error during conversion: {e}")
@@ -78,11 +97,9 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
         ).result()
 
     finally:
-        # Clean up files
         for file in [tiff_path, pdf_path, flag_path]:
             if os.path.exists(file):
                 os.remove(file)
-
 
 def check_crash_recovery():
     """If there's any leftover flag file, notify the user that the process was interrupted."""
