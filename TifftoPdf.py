@@ -1,66 +1,83 @@
 import os
+import threading
+import logging
 from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from PIL import Image
+from keep_alive import keep_alive  # Keeps Railway service alive
 
-# Replace with your bot token
-BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"
+# ✅ Enable detailed logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-async def start(update: Update, context: CallbackContext) -> None:
-    await update.message.reply_text("Hello! Send me a TIFF file, and I'll convert it to a PDF for you.")
+# 🤖 Your Telegram Bot Token
+BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"  # 🔁 Replace with your actual token
 
-async def handle_tiff(update: Update, context: CallbackContext) -> None:
-    file = update.message.document
+# 📄 Function to convert TIFF to PDF
+def convert_tiff_to_pdf(tiff_path, pdf_path):
+    Image.MAX_IMAGE_PIXELS = None
+    images = []
+    try:
+        with Image.open(tiff_path) as img:
+            while True:
+                images.append(img.copy().convert("RGB"))
+                img.seek(img.tell() + 1)
+    except EOFError:
+        pass
 
-    if not file.mime_type.startswith("image/tiff"):
-        await update.message.reply_text("Please send a valid TIFF file.")
+    if images:
+        images[0].save(pdf_path, save_all=True, append_images=images[1:])
+
+# 🔁 Background handler for conversion and response
+def handle_conversion(tiff_path, pdf_path, chat_id, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        convert_tiff_to_pdf(tiff_path, pdf_path)
+        context.bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'))
+        logging.info("✅ PDF sent.")
+    except Exception as e:
+        logging.error(f"❌ Conversion error: {e}")
+        context.bot.send_message(chat_id=chat_id, text="⚠️ Something went wrong during conversion.")
+    finally:
+        for path in [tiff_path, pdf_path]:
+            if os.path.exists(path):
+                os.remove(path)
+        logging.info("🧹 Temp files cleaned up.")
+
+# 🧃 Start command
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Send me a `.tiff` file and I’ll convert it to PDF!")
+
+# 📎 Handler for document uploads
+async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    document = update.message.document
+    if not document or not document.file_name.lower().endswith(".tiff"):
+        await update.message.reply_text("⚠️ Please send a valid `.tiff` file.")
         return
 
-    original_filename = os.path.splitext(file.file_name)[0]
-    tiff_path = f"{original_filename}.tiff"
-    pdf_path = f"{original_filename}.pdf"
+    await update.message.reply_text("📥 Downloading your TIFF file...")
+    file = await context.bot.get_file(document.file_id)
 
-    new_file = await context.bot.get_file(file.file_id)
-    await new_file.download_to_drive(tiff_path)
+    tiff_path = f"{document.file_unique_id}.tiff"
+    pdf_path = f"{document.file_unique_id}.pdf"
+    await file.download_to_drive(tiff_path)
 
-    try:
-        # Open TIFF in a separate process to avoid file locks
-        with Image.open(tiff_path) as image:
-            if hasattr(image, "n_frames") and image.n_frames > 1:
-                image_list = [image.convert("RGB") for i in range(image.n_frames)]
-                image_list[0].save(pdf_path, save_all=True, append_images=image_list[1:])
-            else:
-                image.convert("RGB").save(pdf_path, "PDF", resolution=100.0)
+    logging.info(f"✅ Downloaded: {tiff_path}")
+    await update.message.reply_text("⏳ Converting TIFF to PDF...")
 
-        # Send the PDF with increased timeout
-        with open(pdf_path, "rb") as pdf_file:
-            await context.bot.send_document(
-                chat_id=update.message.chat_id,
-                document=pdf_file,
-                filename=f"{original_filename}.pdf",
-                caption="Here is your converted PDF!"
-)
+    # Start conversion in background
+    threading.Thread(target=handle_conversion, args=(tiff_path, pdf_path, update.effective_chat.id, context)).start()
 
-            
+# 🚀 Main bot runner
+async def main():
+    keep_alive()  # 🔁 Keeps Railway service alive
+    logging.info("🔄 Starting bot...")
 
-    except Exception as e:
-        await update.message.reply_text(f"Error: {e}")
-
-    finally:
-        # Ensure file is closed before deleting
-        if os.path.exists(tiff_path):
-            os.remove(tiff_path)
-        if os.path.exists(pdf_path):
-            os.remove(pdf_path)
-
-def main():
-    app = Application.builder().token(BOT_TOKEN).read_timeout(120).write_timeout(120).build()
-
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Document.MimeType("image/tiff"), handle_tiff))
+    app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
-    print("Bot is running...")
-    app.run_polling()
+    await app.run_polling()
 
+# 🏁 Start bot
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
