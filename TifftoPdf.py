@@ -16,7 +16,7 @@ from keep_alive import keep_alive
 # Logging
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"  # Replace with your token
+BOT_TOKEN = "7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk"
 
 # TIFF to PDF conversion
 def convert_tiff_to_pdf(tiff_path, pdf_path):
@@ -34,11 +34,15 @@ def convert_tiff_to_pdf(tiff_path, pdf_path):
         images[0].save(pdf_path, save_all=True, append_images=images[1:])
 
 # Threaded conversion and async sending
-def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop):
+def handle_conversion(tiff_path, pdf_path, pdf_filename, chat_id, bot, loop):
     try:
         convert_tiff_to_pdf(tiff_path, pdf_path)
         asyncio.run_coroutine_threadsafe(
-            bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb')),
+            bot.send_document(
+                chat_id=chat_id,
+                document=open(pdf_path, 'rb'),
+                filename=pdf_filename  # Send with original name
+            ),
             loop
         )
         logging.info("✅ PDF sent.")
@@ -66,14 +70,18 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     file = await context.bot.get_file(update.message.document.file_id)
 
-    tiff_path = f"{update.message.document.file_unique_id}.tiff"
-    pdf_path = f"{update.message.document.file_unique_id}.pdf"
+    original_filename = update.message.document.file_name  # e.g., image.tiff
+    base_name = os.path.splitext(original_filename)[0]
+    tiff_path = f"{base_name}.tiff"
+    pdf_path = f"{base_name}.pdf"
+    pdf_filename = f"{base_name}.pdf"
+
     await file.download_to_drive(tiff_path)
     logging.info(f"✅ TIFF downloaded: {tiff_path}")
 
     # Start conversion in a thread
     threading.Thread(target=handle_conversion, args=(
-        tiff_path, pdf_path, update.effective_chat.id, context.bot, asyncio.get_running_loop()
+        tiff_path, pdf_path, pdf_filename, update.effective_chat.id, context.bot, asyncio.get_running_loop()
     )).start()
 
 # Main function
