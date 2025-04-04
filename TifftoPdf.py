@@ -83,7 +83,7 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
 
             # Send PDF to user
             asyncio.run_coroutine_threadsafe(
-                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf"),
+                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Sunil, Here is your PDF 📄"),
                 loop
             ).result()
         else:
