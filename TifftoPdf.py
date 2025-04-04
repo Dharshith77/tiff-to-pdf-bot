@@ -82,9 +82,13 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(tiff_path)
     logging.info(f"✅ TIFF downloaded: {tiff_path}")
 
+    loop = asyncio.get_running_loop()  # ✅ Correct way to get the active loop
+
+    # Run conversion in a new thread
     threading.Thread(target=handle_conversion, args=(
-        tiff_path, pdf_path, update.effective_chat.id, context.bot, asyncio.get_event_loop(), display_name
+        tiff_path, pdf_path, update.effective_chat.id, context.bot, loop, display_name
     )).start()
+
 
 # Main function
 def main():
