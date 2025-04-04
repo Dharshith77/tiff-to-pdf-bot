@@ -80,4 +80,9 @@ async def main():
 # 🏁 Start bot
 if __name__ == "__main__":
     import asyncio
-    asyncio.run(main())
+    import nest_asyncio
+    nest_asyncio.apply()  # ✅ Fix: allows nested event loops
+
+    keep_alive()
+
+    asyncio.get_event_loop().run_until_complete(main())
