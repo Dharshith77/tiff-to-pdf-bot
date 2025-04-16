@@ -16,7 +16,6 @@ nest_asyncio.apply()
 BOT_TOKEN = '7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk'  # Replace with your bot token
 app_flask = Flask(__name__)
 
-
 @app_flask.route('/')
 def home():
     return "TIFF to PDF bot is alive!"
@@ -84,11 +83,21 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
             )
             logging.info(f"📄 PDF created: {pdf_path}")
 
-            # Send PDF to user
-            asyncio.run_coroutine_threadsafe(
-                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
-                loop
-            ).result()
+            # Ensure the PDF file exists before sending
+            if os.path.exists(pdf_path):
+                logging.info(f"Sending PDF: {pdf_path}")
+                # Send PDF to user
+                asyncio.run_coroutine_threadsafe(
+                    bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
+                    loop
+                ).result()
+            else:
+                logging.error(f"PDF file does not exist at {pdf_path}")
+                asyncio.run_coroutine_threadsafe(
+                    bot.send_message(chat_id=chat_id, text="Something went wrong while converting the file."),
+                    loop
+                ).result()
+
         else:
             raise Exception("TIFF file has no readable frames.")
 
@@ -100,6 +109,7 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
         ).result()
 
     finally:
+        # Remove temp files
         for file in [tiff_path, pdf_path, flag_path]:
             if os.path.exists(file):
                 os.remove(file)
