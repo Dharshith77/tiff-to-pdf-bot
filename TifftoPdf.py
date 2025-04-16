@@ -5,6 +5,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from PIL import Image
 from flask import Flask
+from flask import request, Response
 import asyncio
 import nest_asyncio
 import time
@@ -21,7 +22,8 @@ def home():
 
 
 def keep_alive():
-    app_flask.run(host='0.0.0.0', port=8081)
+    port = int(os.environ.get('PORT', 8080))  # Use Railway's default port
+    app_flask.run(host='0.0.0.0', port=port)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -124,15 +126,29 @@ def main():
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
-    # Start Flask keep-alive in background
+    # Set webhook
+    async def setup_webhook():
+        await application.bot.delete_webhook()  # ensure no previous webhook
+        await application.bot.set_webhook(WEBHOOK_URL)
+        logging.info(f"🚀 Webhook set to {WEBHOOK_URL}")
+
+    asyncio.run(setup_webhook())
+
+    # Flask route to receive updates from Telegram
+    @app_flask.route('/webhook', methods=['POST'])
+    def webhook():
+        update = Update.de_json(request.get_json(force=True), application.bot)
+        asyncio.run(application.process_update(update))
+        return Response("ok", status=200)
+
+    # Start Flask server (keep_alive)
     threading.Thread(target=keep_alive, daemon=True).start()
 
     # Handle crash recovery
     check_crash_recovery()
 
-    logging.info("🔄 Starting bot...")
-    application.run_polling()
-
-
+    logging.info("🚀 Bot running with webhook...")
+    while True:
+        time.sleep(10)
 if __name__ == '__main__':
     main()
