@@ -4,17 +4,17 @@ import threading
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from PIL import Image
-from flask import Flask
-from flask import request, Response
+from flask import Flask, request, Response
 import asyncio
 import nest_asyncio
 import time
+
 WEBHOOK_URL = 'https://worker-production-bce8.up.railway.app/webhook'
 
 nest_asyncio.apply()
 
-BOT_TOKEN = '7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk'  # replace with your bot token
-app_flask = Flask('')
+BOT_TOKEN = '7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk'  # Replace with your bot token
+app_flask = Flask(__name__)
 
 
 @app_flask.route('/')
@@ -23,7 +23,7 @@ def home():
 
 
 def keep_alive():
-    port = int(os.environ.get('PORT', 8080))  # Use Railway's default port
+    port = int(os.environ.get('PORT', 8000))  # Use Railway's default port (8000)
     app_flask.run(host='0.0.0.0', port=port)
 
 
@@ -86,7 +86,7 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
 
             # Send PDF to user
             asyncio.run_coroutine_threadsafe(
-                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Sunil, Here is your PDF 📄"),
+                bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
                 loop
             ).result()
         else:
@@ -103,6 +103,7 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
         for file in [tiff_path, pdf_path, flag_path]:
             if os.path.exists(file):
                 os.remove(file)
+
 
 def check_crash_recovery():
     """If there's any leftover flag file, notify the user that the process was interrupted."""
@@ -124,13 +125,13 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-    asyncio.run(application.initialize())  # 🔧 initialize once here
+    asyncio.run(application.initialize())  # 🔧 Initialize once here
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
     # Set webhook
     async def setup_webhook():
-        await application.bot.delete_webhook()  # ensure no previous webhook
+        await application.bot.delete_webhook()  # Ensure no previous webhook
         await application.bot.set_webhook(WEBHOOK_URL)
         logging.info(f"🚀 Webhook set to {WEBHOOK_URL}")
 
@@ -145,7 +146,7 @@ def main():
         task = loop.create_task(application.process_update(update))
         loop.run_until_complete(task)
 
-    return Response("ok", status=200)
+        return Response("ok", status=200)
 
     # Start Flask server (keep_alive)
     threading.Thread(target=keep_alive, daemon=True).start()
@@ -156,5 +157,7 @@ def main():
     logging.info("🚀 Bot running with webhook...")
     while True:
         time.sleep(10)
+
+
 if __name__ == '__main__':
     main()
