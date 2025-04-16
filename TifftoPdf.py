@@ -87,10 +87,14 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
             if os.path.exists(pdf_path):
                 logging.info(f"Sending PDF: {pdf_path}")
                 # Open PDF and send to user
+                
                 with open(pdf_path, 'rb') as pdf_file:
+                    file_data = BytesIO(pdf_file.read())
+                    file_data.name = f"{display_name}.pdf"
+
                     asyncio.run_coroutine_threadsafe(
-                        bot.send_document(chat_id=chat_id, document=pdf_file, filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
-                        loop
+                         bot.send_document(chat_id=chat_id, document=file_data, caption="Here is your PDF 📄"),
+                         loop
                     ).result()
             else:
                 logging.error(f"PDF file does not exist at {pdf_path}")
