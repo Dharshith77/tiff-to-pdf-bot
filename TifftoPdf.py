@@ -124,6 +124,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
+    asyncio.run(application.initialize())  # 🔧 initialize once here
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
