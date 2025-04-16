@@ -23,7 +23,7 @@ def home():
 
 
 def keep_alive():
-    port = int(os.environ.get('PORT', 8000))  # Use Railway's default port (8000)
+    port = int(os.environ.get('PORT', 8080))  # Use Railway's default port (8080)
     app_flask.run(host='0.0.0.0', port=port)
 
 
