@@ -140,8 +140,12 @@ def main():
     @app_flask.route('/webhook', methods=['POST'])
     def webhook():
         update = Update.de_json(request.get_json(force=True), application.bot)
-        asyncio.run(application.process_update(update))
-        return Response("ok", status=200)
+
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(application.process_update(update))
+        loop.run_until_complete(task)
+
+    return Response("ok", status=200)
 
     # Start Flask server (keep_alive)
     threading.Thread(target=keep_alive, daemon=True).start()
