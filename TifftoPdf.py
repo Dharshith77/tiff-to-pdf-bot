@@ -64,7 +64,7 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
     try:
         image = Image.open(tiff_path)
 
-        # Load all frames
+        # Load all frames (if the TIFF file has multiple frames)
         frames = []
         try:
             while True:
@@ -86,11 +86,12 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
             # Ensure the PDF file exists before sending
             if os.path.exists(pdf_path):
                 logging.info(f"Sending PDF: {pdf_path}")
-                # Send PDF to user
-                asyncio.run_coroutine_threadsafe(
-                    bot.send_document(chat_id=chat_id, document=open(pdf_path, 'rb'), filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
-                    loop
-                ).result()
+                # Open PDF and send to user
+                with open(pdf_path, 'rb') as pdf_file:
+                    asyncio.run_coroutine_threadsafe(
+                        bot.send_document(chat_id=chat_id, document=pdf_file, filename=f"{display_name}.pdf", caption="Here is your PDF 📄"),
+                        loop
+                    ).result()
             else:
                 logging.error(f"PDF file does not exist at {pdf_path}")
                 asyncio.run_coroutine_threadsafe(
@@ -109,10 +110,11 @@ def handle_conversion(tiff_path, pdf_path, chat_id, bot, loop, display_name, fla
         ).result()
 
     finally:
-        # Remove temp files
+        # Remove temp files after processing
         for file in [tiff_path, pdf_path, flag_path]:
             if os.path.exists(file):
                 os.remove(file)
+                logging.info(f"Removed temporary file: {file}")
 
 
 def check_crash_recovery():
