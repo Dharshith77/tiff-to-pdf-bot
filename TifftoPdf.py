@@ -8,6 +8,7 @@ from flask import Flask, request, Response
 import asyncio
 import nest_asyncio
 import time
+from io import BytesIO
 
 WEBHOOK_URL = 'https://worker-production-bce8.up.railway.app/webhook'
 
