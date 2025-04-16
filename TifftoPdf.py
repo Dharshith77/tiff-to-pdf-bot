@@ -9,7 +9,7 @@ from flask import request, Response
 import asyncio
 import nest_asyncio
 import time
-WEBHOOK_URL = 'https://worker-production-bce8.up.railway.app:8080/'
+WEBHOOK_URL = 'https://worker-production-bce8.up.railway.app'
 
 nest_asyncio.apply()
 
