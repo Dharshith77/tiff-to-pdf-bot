@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 import time
 
-BOT_TOKEN = os.getenv("'7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk")  # Securely fetched from Render env vars
+BOT_TOKEN = os.getenv("7877725710:AAFiMMS9u56P911eODywMaVPRNIkL26_Jrk")  # Securely fetched from Render env vars
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Send me a TIFF file and I'll convert it to PDF!")
