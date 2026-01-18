@@ -34,6 +34,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Send me a TIFF file and I'll convert it to PDF!"
     )
+    
+async def wake_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text:
+        await update.message.reply_text(
+            "I'm awake now 🙂\nPlease send the TIFF file again to convert it to PDF."
+        )
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     document = update.message.document
@@ -87,6 +93,9 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= TELEGRAM APP =================
 telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
 telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(
+    MessageHandler(filters.TEXT & ~filters.COMMAND, wake_message)
+)
 telegram_app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
 
 # ================= ASYNCIO LOOP (GLOBAL) =================
