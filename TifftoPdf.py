@@ -79,3 +79,33 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     finally:
         for f in (tiff_path, pdf_path):
+            if os.path.exists(f):
+                os.remove(f)
+
+# ================= TELEGRAM APP =================
+telegram_app = ApplicationBuilder().token(BOT_TOKEN).build()
+telegram_app.add_handler(CommandHandler("start", start))
+telegram_app.add_handler(MessageHandler(filters.Document.ALL, handle_file))
+
+# ================= WEBHOOK =================
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), telegram_app.bot)
+    asyncio.get_event_loop().create_task(
+        telegram_app.process_update(update)
+    )
+    return Response("ok", status=200)
+
+# ================= STARTUP =================
+async def setup_webhook():
+    await telegram_app.initialize()
+    await telegram_app.bot.delete_webhook(drop_pending_updates=True)
+    await telegram_app.bot.set_webhook(WEBHOOK_URL)
+    logging.info(f"Webhook set to {WEBHOOK_URL}")
+
+def main():
+    asyncio.get_event_loop().run_until_complete(setup_webhook())
+    app.run(host="0.0.0.0", port=PORT)
+
+if __name__ == "__main__":
+    main()
